@@ -1,6 +1,5 @@
 ---
-title: Transient and persistent species differ in germination rates, not establishment
-  rates, across a grassland metacommunity.
+title: Species ranges are constrained by germination, not establishment, in a grassland metacommunity.
 author: John Guittar, Deborah Goldberg, Kari Klanderud, Astrid Berge, Marta Boixaderes,
   Eric Meineri, Joachim Topper, and Vigdis Vandvik.
 output:
@@ -23,12 +22,12 @@ header-includes: |
 
 ```{r setup, include = FALSE}
 
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
 ```
 
 
-```{r assemble data, include = FALSE, cache = FALSE}
+```{r assemble data, include = FALSE}
 
 # set wd
 wd <- 'C:\\Users\\John\\Documents\\michigan\\seedclim\\'
@@ -39,7 +38,8 @@ source("MS_Transients\\custom_functions_transients.R")
 loadpax(pkg = c('grid','knitr','vegan','MASS','lme4','tidyverse','gridExtra','kableExtra'))
 
 # load abundance data
-x <- read.csv("data\\transitions.csv", stringsAsFactors = FALSE)  
+x <- read.csv("data\\transitions.csv", stringsAsFactors = FALSE)
+x <- filter(x, sp != 'Bot.lun')
 
 # load site metadata
 site.meta <- read.csv("data\\site_meta.csv", stringsAsFactors = FALSE)
@@ -154,7 +154,7 @@ fig2
 
 ```
 
-**Figure 2.** Numbers of individuals recorded in this study, grouped by life stage and shaded by local species status. "Persistent" species occur as adults in three or more of our four annual vegetation surveys, whereas "transient" seeds do not. Percentages are of transient species out of total life stage.
+**Figure 2.** Numbers of individuals recorded in this study, grouped by life stage and shaded by local species status. "Persistent" species occured as adults in two or more annual vegetation surveys, whereas "transient" seeds did not. Percentages are of transient species out of total life stage.
 
 \pagebreak
 
@@ -242,7 +242,7 @@ multiplot(p1, p2, cols = 2)
 
 ```
 
-**Figure 3.** Seed density and richness of transient species by site, in raw numbers and as percentages of total seeds/species at each site, plotted by mean summer temperature. Summer is defined as the three warmest months at each site. Shape color is consistent with Fig. 1 and reflects mean annual precipitation values, from light blue to dark blue, of approximately 660 mm, 1300 mm, 2000 mm, and 2900 mm. Linear regression lines are solid when significant (p < 0.05) and dashed when marginally significant (p < 0.1). See Table S3 for linear regression summary statistics.
+**Figure 3.** Seed density (left) and species richness (right) of transient species by site, in raw numbers and as percentages of total seeds/species at each site, plotted by mean summer temperature. Summer is defined as the three warmest months at each site. Shape color is consistent with Fig. 1 and reflects mean annual precipitation values, from light blue to dark blue, of approximately 660 mm, 1300 mm, 2000 mm, and 2900 mm. Linear regression lines are solid when significant (p < 0.05) and dashed when marginally significant (p < 0.1). See Table S2 for linear regression summary statistics.
 
 \pagebreak
 
@@ -429,8 +429,6 @@ mod_coefs <- mod_coefs %>%
 
 ```{r transition probabilities, fig.height = 3.5}
 
-set.seed(7)
-
 j <- xS_origins %>%
   spread(stage, abun, fill = 0)
 
@@ -555,11 +553,11 @@ ggplot(j, aes(x = trait, y = cm_diff)) +
 
 ```
 
-**Figure 6.** Community mean trait values of locally transient species relative to locally persistent species, calculated by site and life stage and summarized using error bars based on 95% confidence intervals. Values for each trait were scaled by their standard deviations to enable comparisons across traits. Values to the left of the dotted line (x = 0) denote sites where trait values of transient individuals were greater on average than the trait values of persistent individuals, and vice versa. Error bars are colored red when transient and persistent community weighted mean trait values differed significantly (paired t-test; p < 0.05).
+**Figure 6.** Community mean trait values of locally transient species relative to locally persistent species, calculated by site and life stage and summarized using error bars based on 95% confidence intervals. Values for each trait were scaled by their standard deviations to enable comparisons across traits. Values to the left of the dotted line (equal means) denote sites where trait values of transient individuals were greater on average than the trait values of persistent individuals, and vice versa. Error bars are colored red when transient and persistent community weighted mean trait values differed significantly (paired t-test; p < 0.05).
 
 \pagebreak
 
-```{r Table 1 seedling emergence, cache = FALSE}
+```{r Table 1 seedling emergence}
 
 j <- mod_coefs %>%
   filter(Model %in% c('germNull','germClim','germS','germP','germT')) %>%
@@ -573,31 +571,26 @@ j <- mod_coefs %>%
                            ifelse(p.value < 0.05, paste0("*", Estimate), Estimate)),
     p.value = NULL) %>%
   spread(Model, Estimate, fill = NA) %>%
-  transmute(
-    ` ` = as.character(Variable),
-    N = c(rep(sum(germ_n[c(1,2,4,5,8)]), 3), rep(sum(germ_n[c(2,4,5,8)]),3), germ_n[c(2,4,5,3,6,7,8)]),
-    `Null model` = germNull, 
-    `Local climate` = germClim,
-    `Local climate + Local sp. status (P/T)` = germS,
-    `Local climate + Local sp. status (P/ST/C/Wa/U)` = germT,
-    `Local climate + Local sp. status (P/SP/D/We/U)` = germP)
+  mutate(
+    Variable = as.character(Variable),
+    N = c(rep(sum(germ_n[c(1,2,4,5,8)]), 3), rep(sum(germ_n[c(2,4,5,8)]),3), germ_n[c(2,4,5,3,6,7,8)])
+    ) %>%
+  select(Variable, germNull, germClim, germS, germT, germP)
 
-AICs <- c('$\\Delta$AIC', NA, sprintf("%.2f", c(0, AIC(germClim) - AIC(germNull), 
-                                                   AIC(germS) - AIC(germNull),
-                                                   AIC(germT) - AIC(germNull), 
-                                                   AIC(germP) - AIC(germNull))))
+AICs <- c('$\\Delta$AIC', sprintf("%.2f", c(c(AIC(germNull), AIC(germClim), AIC(germS), AIC(germT), AIC(germP)) - AIC(germNull))))
 
 j <- rbind(AICs, j)
 
 options(knitr.kable.NA = '-')
 
-kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l','r','r','r','r','r','r')) %>%
+kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l','r','r','r','r','r','r'),
+      col.names = linebreak(c("", "Null model", "Site climate", "Site climate +\nSp. status", "Site climate +\n Sp. temp. origin", "Site climate +\nSp. precip. origin"), align = 'r')) %>%
   kable_styling() %>%
   column_spec(3:7, width = "8em") %>%
   group_rows("General predictors", 2, 4) %>%
   group_rows("Transient/Persistent predictors", 5, 7) %>%
   group_rows("Origin-based predictors", 8, 14) %>%
-  footnote(threeparttable = TRUE, general = "Comparison of z-scores from different GLM models (columns) predicting numbers of emerged seedlings by species and site. Abbreviations in column headers refer to the categories used in the model term denoting local species status, potentially including the putative climate origins of each transient species at each site: P = persistent, T = transient, ST = similar temperature (i.e., a transient from a site with a similar temperature), SP = similar precipitation, C = cooler, Wa = warmer, D = drier, We = wetter, or U = unknown climate. Data include all recorded seeds and seedlings that could be identified to species. N equals the number of unique species-by-site combinations for each category/predictor. Asterisks denote significance (*: p < 0.05, **: p < 0.001). Dashes indicate predictors that were not included in a given model. Including model terms for transient/persistent species status and then putative temperature and precipitation origins progressively improved model performance, as reflected in the reduction of AIC values relative to the null model that uses only local seed numbers as a predictor.", general_title = "Table 1.") %>%
+  footnote(threeparttable = TRUE, general = 'Standardized coefficients (z-scores) from different GLM models (columns) predicting numbers of emerged seedlings by species and site. In column headers (i.e., model descriptions), "Species status" refers to whether the species is locally transient or persistent, and "Species temperature/precipitation origin" refers to the putative climate origin based on the nearest adult population. Data include all recorded seeds and seedlings that could be identified to species. N equals the number of unique species-by-site combinations for each category/predictor. Asterisks denote significance (*: p < 0.05, **: p < 0.001). Dashes indicate predictors that were not included in a given model. Including model terms for transient/persistent species status and then putative temperature and precipitation origins progressively improved model performance, as reflected in the reduction of AIC values relative to the null model that uses only local seed numbers as a predictor.', general_title = "Table 1.") %>%
   landscape()
 
 ```
@@ -611,80 +604,6 @@ kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l'
 \end{center}
 
 \pagebreak
-
-```{r seed sampling rarefaction, include = FALSE}
-
-# create dataframe which includes seed rain, seed bank, and all seeds
-rf <- xS %>% 
-  filter(stage == 'seed') %>%
-  bind_rows(x) %>%
-  filter(stage %in% c('rain','bank','seed')) %>%
-  group_by(stage, site, sp) %>%
-  summarise(abun = ceiling(sum(abun))) %>%
-  spread(sp, abun, fill = 0) %>%
-  as.data.frame()
-
-#add row names (necessary for rarecurve(), perform rarefaction, 
-row.names(rf) <- paste0(rf$stage, rf$site)
-rf$site <- rf$stage <- NULL
-tmp <- rarecurve(rf); dev.off()
-tmp <- lapply(tmp, function(x) data.frame(N = seq_along(x), rich = x))
-names(tmp) <- row.names(rf)
-tmp <- do.call('rbind', tmp)
-tmp$site <- unlist(lapply(strsplit(as.character(row.names(tmp)), '.', fixed = TRUE), function(x) x[1]))
-tmp$stage <- substr(tmp$site, 1, nchar(tmp$site) - 3)
-tmp$site <- substr(tmp$site, nchar(tmp$site) - 2, nchar(tmp$site))
-
-#add climate
-tmp <- tmp %>%
-  left_join(site.meta[, c('site','temp','precip','temp.level','precip.level')], by = 'site') %>%
-  mutate(
-    stage = factor(stage_labels(stage)),
-    MST = factor(c(6,9,10.5)[match(temp.level, c(1:3))]),
-    MAP = factor(c(650,1300,2000,2900)[match(precip.level, c(1:4))])) %>%
-  group_by(site, stage) %>%
-  mutate(Nmax = max(N), richmax = max(rich))
-
-```
-
-```{r seed sampling rarefaction plot, fig.height = 3.5}
-
-tmp1 <- tmp %>%
-  group_by(temp.level) %>% 
-  mutate(temp = paste(signif(mean(temp), 2), "°C")) %>%
-  ungroup() %>%
-  group_by(precip.level) %>% 
-  mutate(precip = paste(signif(mean(precip), 2), "mm/yr")) %>%
-  ungroup() %>%
-  mutate(
-    MST = factor(temp, levels = sort(unique(temp))[c(1,3,2)]), 
-    MAP = factor(precip, levels = sort(unique(precip))[c(4,1,2,3)])
-  )
-
-ggplot(tmp1, aes(x = N, y = rich, group = site)) +
-    geom_line() +
-    geom_point(aes(x = Nmax, y = richmax, shape = MST, fill = MAP), size = 3, data = distinct(tmp1, site, stage, .keep_all = TRUE)) +
-    labs(x = 'Number of individuals sampled', y = 'Species Richness') +
-    facet_wrap(~stage) +
-    scale_fill_manual(values = c('#87CEEB', '#749ED5', '#5057B2', '#140D8F'), name = 'Mean summer temperature') +
-    scale_shape_manual(values = c(25,21,24), 'Mean annual precipitation') +
-    theme_bw() +
-    theme(
-      panel.grid.minor = element_blank(),
-      panel.grid.major = element_blank(),
-      panel.background = element_blank(),
-      legend.box = 'horizontal',
-      legend.position = 'bottom') +
-    guides(
-      fill = guide_legend(title.position = 'top', title.hjust = 0.5, override.aes = list(shape = 21)),
-      shape = guide_legend(title.position = 'top', title.hjust = 0.5))
-
-```
-
-**Figure S1.** Rarefaction curves for seed sampling. Coloring and symbols are consistent with Figure 1. 
-
-\pagebreak
-
 
 ```{r whittaker rank abundance plots, fig.height = 3}
 
@@ -718,14 +637,12 @@ ggplot(j, aes(x = sp, y = abun + 1, color = MAP)) +
 
 ```
 
-**Figure S2.** Whittaker rank abundance plots plotted by site. MST = Mean summer temperature, defined as the three warmest months at each site; MAP = Mean annual precipitation.
+**Figure S1.** Whittaker rank abundance plots plotted by site. MST = Mean summer temperature, defined as the three warmest months at each site; MAP = Mean annual precipitation.
 
 \pagebreak
 
 
 ```{r transition probabilities with temp levels}
-
-set.seed(7)
 
 j <- xS_origins %>%
   spread(stage, abun, fill = 0)
@@ -762,106 +679,11 @@ j %>%
 
 ```
 
-**Figure S3.** The abundances of emerged seedlings by species and site, colored by local species status. Each circle represents the abundance of one species at one site. Colored lines show linear regressions for data at the three temperature levels in our system; each temperature level includes data from four sites with different mean annual precipitations. Seed number is equal to the sum of seeds in the seed rain and seed bank. Abundances reflect the net number of individuals in four 0.25 m^2^ subplots (i.e., 0.25 m^2^) at each site. Count data are increased by one to enable plotting zeroes on a log scale. Panels only show data falling within the observed window of transient seed abundances (< 632 seeds) in order to focus on the comparison of persistent and transient species.
-
-
-\pagebreak
-
-```{r CMs by temp, fig.height = 8}
-
-j <- x %>%
-  left_join(trait.data, by = 'sp') %>%
-  left_join(site.meta[, c('site','temp')], by = 'site') %>%
-  rename(`Seed mass` = seed.mass, 
-         SLA = sla, 
-         `Leaf area` = leaf.area, 
-         `Maximum height` = max.height,
-         `Connection persistence` = conper,
-         `Clonal offspring` = offs,
-         `Rate of lateral spread` = lat,
-         `Bud number` = buds
-         ) %>%
-  gather(trait, val, `Seed mass`, SLA, `Leaf area`, `Maximum height`, `Connection persistence`, `Clonal offspring`, `Rate of lateral spread`, `Bud number`) %>%
-  filter(stage != 'mature') %>%
-  mutate(stage = stage_labels(stage)) %>%
-  ungroup() %>%
-  group_by(site, temp, stage, trait, id) %>%
-  summarise(cm = mean(val, na.rm = T)) %>%
-  group_by(site, temp, Stage = stage, trait) %>%
-  filter(length(unique(id)) == 2) %>%
-  summarise(cm_diff = cm[id == 'Transient'] - cm[id == 'Persistent']) %>%
-  filter(!is.na(cm_diff))
-
-mods <- j %>%
-  group_by(trait, Stage) %>%
-  do(mod = lm(cm_diff ~ temp, data = .)) %>%
-  mutate(pval = summary(mod)$coefficients[8])
-
-j <- j %>%
-  left_join(mods[, c('trait','Stage','pval')], by = c("trait", "Stage"))
-
-ggplot(j, aes(x = temp, y = cm_diff, color = Stage, fill = Stage)) +
-    geom_hline(yintercept = 0, lty = 3, color = 'dark grey') +
-    geom_point() + 
-    stat_smooth(method = 'lm', se = FALSE, data = filter(j, pval < 0.05)) +
-    facet_wrap(~trait, scales = 'free', ncol = 2) +
-    th +
-    labs(x = expression('Mean summer temperature ('*degree*'C)'), y = 'Transient community mean - Persistent community mean')
-
-```
-
-**Figure S4.** Community mean trait values of locally transient species relative to locally persistent species, grouped by site and life stage and plotted by mean summer temperature. Community means are calculated as the average trait value of all species present in the community. Values above the grey dotted line (y = 0) denote sites where the trait values of transient individuals were greater on average than the trait values of persistent individuals, and vice versa. Lines are shown only when linear regression is significant (p < 0.05).
+**Figure S2.** The abundances of emerged seedlings by species and site, colored by local species status. Each circle represents the abundance of one species at one site. Colored lines show linear regressions for data at the three temperature levels in our system; each temperature level includes data from four sites with different mean annual precipitations. Seed number is equal to the sum of seeds in the seed rain and seed bank. Abundances reflect the net number of individuals in four 0.25 m^2^ subplots (i.e., 0.25 m^2^) at each site. Count data are increased by one to enable plotting zeroes on a log scale. Panels only show data falling within the observed window of transient seed abundances (< 632 seeds) in order to focus on the comparison of persistent and transient species.
 
 \pagebreak
 
-```{r CMs by precip, fig.height = 8}
-
-j <- x %>%
-  left_join(trait.data, by = 'sp') %>%
-  left_join(site.meta[, c('site','precip')], by = 'site') %>%
-  rename(`Seed mass` = seed.mass, 
-         SLA = sla, 
-         `Leaf area` = leaf.area, 
-         `Maximum height` = max.height,
-         `Connection persistence` = conper,
-         `Clonal offspring` = offs,
-         `Rate of lateral spread` = lat,
-         `Bud number` = buds
-         ) %>%
-  gather(trait, val, `Seed mass`, SLA, `Leaf area`, `Maximum height`, `Connection persistence`, `Clonal offspring`, `Rate of lateral spread`, `Bud number`) %>%
-  filter(stage != 'mature') %>%
-  mutate(stage = stage_labels(stage)) %>%
-  ungroup() %>%
-  group_by(site, precip, stage, trait, id) %>%
-  summarise(cm = mean(val, na.rm = T)) %>%
-  group_by(site, precip, Stage = stage, trait) %>%
-  filter(length(unique(id)) == 2) %>%
-  summarise(cm_diff = cm[id == 'Transient'] - cm[id == 'Persistent']) %>%
-  filter(!is.na(cm_diff))
-
-mods <- j %>%
-  group_by(trait, Stage) %>%
-  do(mod = lm(cm_diff ~ precip, data = .)) %>%
-  mutate(pval = summary(mod)$coefficients[8])
-
-j <- j %>%
-  left_join(mods[, c('trait','Stage','pval')], by = c("trait", "Stage"))
-
-ggplot(j, aes(x = precip, y = cm_diff, color = Stage, fill = Stage)) +
-    geom_hline(yintercept = 0, lty = 3, color = 'dark grey') +
-    geom_point() + 
-    stat_smooth(method = 'lm', se = FALSE, data = filter(j, pval < 0.05)) +
-    facet_wrap(~trait, scales = 'free', ncol = 2) +
-    th +
-    labs(x = 'Mean annual precipitation (mm/yr)', y = 'Transient community mean - Persistent community mean')
-
-```
-
-**Figure S5.** Community mean trait values of locally transient species relative to locally persistent species, grouped by site and life stage and plotted by mean annual precipitation. Community means are calculated as the average trait value of all species present in the community. Values above the grey dotted line (y = 0) denote sites where the trait values of transient individuals were greater on average than the trait values of persistent individuals, and vice versa. Lines are shown only when linear regression is significant (p < 0.05).
-
-\pagebreak
-
-```{r density and richness table, cache = FALSE}
+```{r density and richness table}
 
 # first take average density across blocks
 # then sum densities of seed rain and seed bank
@@ -957,7 +779,7 @@ j %>%
 
 \pagebreak
 
-```{r linear model stats table all species, cache = FALSE}
+```{r linear model stats table all species}
 
 j <- x %>%
   #filter(stage %in% c('rain','bank')) %>%
@@ -1003,6 +825,31 @@ j <- j %>%
 usepackage_latex("gensymb")
 
 j %>%
+  filter(group != 'all' & stage %in% c('rain','bank')) %>%
+  transmute(
+    `Model/Variable` = Predictor,
+    Coefficient = ifelse(pval < .05 & Predictor == 'Precipitation', format(round(Estimate, 5), nsmall = 5), format(round(Estimate, 2), nsmall = 2)),
+    `Std. Error` = format(round(se, 2), nsmall = 2),
+    `t-statistic` = format(round(tval, 3), nsmall = 3),
+    `P-value` = format(round(pval, 3), nsmall = 3),
+    `P-value` = cell_spec(`P-value`, format = 'latex', bold = as.numeric(`P-value`) < 0.05,
+    italic = as.numeric(`P-value` > 0.05 & as.numeric(`P-value` < 0.1)))) %>%
+  kable(format = 'latex', escape = F, booktabs = T, align = c('l','r','r','r','r')) %>%
+  kable_styling() %>%
+  group_rows("Seed rain seed density, transient species only", 1, 2) %>%
+  group_rows("Percent transient seeds in the seed rain", 3, 4) %>%
+  group_rows("Seed bank seed density, transient species only", 5, 6) %>%
+  group_rows("Percent transient seeds in the seed bank", 7, 8) %>%
+  group_rows("Seed rain richness, transient species only", 9, 10) %>%
+  group_rows("Percent transient species in the seed rain", 11, 12) %>%
+  group_rows("Seed bank richness, transient species only", 13, 14) %>%
+  group_rows("Percent transient species in the seed bank", 15, 16) %>%
+  row_spec(0, bold = T) %>%
+  footnote(general_title = "Table S2.",
+           general = "Summary statistics for multiple linear regression models of seed abundances and species richness of transient species across sites. Each set of rows (i.e., predictors) with a bold header is a model. In each model, a data point is a number of seeds or species at a site; N = 12. P-values are bold when < 0.05, and italic when < 0.1. Temperature refers to mean summer temperature (\\\\degree C), defined as the three warmest months of the year, and mean annual precipitation (mm/yr). Temperature and precipitation interaction terms were never significant(data not shown) and are not included here.", threeparttable = T, escape = FALSE)
+
+
+tableS3 <- j %>%
   filter(group == 'all') %>%
   filter(!(stage == 'mature' & var == 'abun')) %>%
   transmute(
@@ -1025,37 +872,15 @@ j %>%
   group_rows("Established seedling richness, all species", 15, 16) %>%
   group_rows("Adult vegetation richness, all species", 17, 18) %>%
   row_spec(0, bold = T) %>%
-  footnote(general_title = "Table S2.",
-           general = "Summary statistics for multiple linear regression models of total seed and seedling abundances, and total seed, seedling, and adult species richness across sites. Each set of rows (i.e., predictors) with a bold header is a model. In each model, a data point is a number of seeds, seedlings, percent cover units of adult vegetation, or species at a site; N = 12. P-values are bold when < 0.05, and italic when < 0.1. Temperature refers to mean summer temperature (\\\\degree C), defined during the three warmest months of the year, and mean annual precipitation (mm/yr). Temperature and precipitation interaction terms were never significant (data not shown) and are not included here.", threeparttable = T, escape = FALSE)
-
-tableS3 <- j %>%
-  filter(group != 'all' & stage %in% c('rain','bank')) %>%
-  transmute(
-    `Model/Variable` = Predictor,
-    Coefficient = ifelse(pval < .05 & Predictor == 'Precipitation', format(round(Estimate, 5), nsmall = 5), format(round(Estimate, 2), nsmall = 2)),
-    `Std. Error` = format(round(se, 2), nsmall = 2),
-    `t-statistic` = format(round(tval, 3), nsmall = 3),
-    `P-value` = format(round(pval, 3), nsmall = 3),
-    `P-value` = cell_spec(`P-value`, format = 'latex', bold = as.numeric(`P-value`) < 0.05,
-    italic = as.numeric(`P-value` > 0.05 & as.numeric(`P-value` < 0.1)))) %>%
-  kable(format = 'latex', escape = F, booktabs = T, align = c('l','r','r','r','r')) %>%
-  kable_styling() %>%
-  group_rows("Seed rain seed density, transient species only", 1, 2) %>%
-  group_rows("Percent transient seeds in the seed rain", 3, 4) %>%
-  group_rows("Seed bank seed density, transient species only", 5, 6) %>%
-  group_rows("Percent transient seeds in the seed bank", 7, 8) %>%
-  group_rows("Seed rain richness, transient species only", 9, 10) %>%
-  group_rows("Percent transient species in the seed rain", 11, 12) %>%
-  group_rows("Seed bank richness, transient species only", 13, 14) %>%
-  group_rows("Percent transient species in the seed bank", 15, 16) %>%
-  row_spec(0, bold = T) %>%
   footnote(general_title = "Table S3.",
-           general = "Summary statistics for multiple linear regression models of seed abundances and species richness of transient species across sites. Each set of rows (i.e., predictors) with a bold header is a model. In each model, a data point is a number of seeds or species at a site; N = 12. P-values are bold when < 0.05, and italic when < 0.1. Temperature refers to mean summer temperature (\\\\degree C), defined as the three warmest months of the year, and mean annual precipitation (mm/yr). Temperature and precipitation interaction terms were never significant(data not shown) and are not included here.", threeparttable = T, escape = FALSE)
+           general = "Summary statistics for multiple linear regression models of total seed and seedling abundances, and total seed, seedling, and adult species richness across sites. Each set of rows (i.e., predictors) with a bold header is a model. In each model, a data point is a number of seeds, seedlings, percent cover units of adult vegetation, or species at a site; N = 12. P-values are bold when < 0.05, and italic when < 0.1. Temperature refers to mean summer temperature (\\\\degree C), defined during the three warmest months of the year, and mean annual precipitation (mm/yr). Temperature and precipitation interaction terms were never significant (data not shown) and are not included here.", threeparttable = T, escape = FALSE)
 
 
 ```
 
-```{r linear model stats table transients only, cache = FALSE}
+\pagebreak
+
+```{r linear model stats table transients only}
 
 tableS3
 
@@ -1109,7 +934,7 @@ kable(j, format = 'latex', escape = T, booktabs = T, align = c('l','r','r','r','
 
 \pagebreak
 
-```{r species site correlations, cache = FALSE}
+```{r species site correlations}
 
 # no generic sp's here
 j <- x %>%
@@ -1140,7 +965,7 @@ j %>%
 
 \pagebreak
 
-```{r seedling establishment model table, cache = FALSE}
+```{r seedling establishment model table}
 
 j <- mod_coefs %>%
   filter(Model %in% c('estNull','estClim','estS','estP','estT')) %>%
@@ -1154,31 +979,24 @@ j <- mod_coefs %>%
                            ifelse(p.value < 0.05, paste0("*", Estimate), Estimate)),
     p.value = NULL) %>%
   spread(Model, Estimate, fill = NA) %>%
-  transmute(
-    ` ` = as.character(Variable),
-    N = c(rep(sum(est_n[c(1,2,4,5,8)]), 3), rep(sum(est_n[c(2,4,5,8)]),3), est_n[c(2,4,5,3,6,7,8)]),
-    `Null model` = estNull, 
-    `Local climate` = estClim,
-    `Local climate + Local sp. status (P/T)` = estS,
-    `Local climate + Local sp. status (P/ST/C/Wa/U)` = estT,
-    `Local climate + Local sp. status (P/SP/D/We/U)` = estP)
+  mutate(
+    Variable = as.character(Variable),
+    N = c(rep(sum(est_n[c(1,2,4,5,8)]), 3), rep(sum(est_n[c(2,4,5,8)]),3), est_n[c(2,4,5,3,6,7,8)])) %>%
+  select(Variable, estNull, estClim, estS, estT, estP)
 
-AICs <- c('$\\Delta$AIC', NA, sprintf("%.2f", c(0, AIC(estClim) - AIC(estNull), 
-                                          AIC(estS) - AIC(estNull),
-                                          AIC(estT) - AIC(estNull), 
-                                          AIC(estP) - AIC(estNull))))
+AICs <- c('$\\Delta$AIC', sprintf("%.2f", c(c(AIC(estNull), AIC(estClim), AIC(estS), AIC(estT), AIC(estP)) - AIC(estNull))))
 
 j <- rbind(AICs, j)
 
 options(knitr.kable.NA = '-')
 
-kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l','r','r','r','r','r','r')) %>%
+kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l','r','r','r','r','r','r'), col.names = linebreak(c("", "Null model", "Site climate", "Site climate +\nSp. status", "Site climate +\n Sp. temp. origin", "Site climate +\nSp. precip. origin"), align = 'r')) %>%
   kable_styling() %>%
-  column_spec(3:7, width = "7em") %>%
+  column_spec(3:7, width = "8em") %>%
   group_rows("General predictors", 2, 4) %>%
   group_rows("Transient/Persistent predictor", 5, 7) %>%
   group_rows("Origin-based predictors", 8, 14) %>%
-  footnote(threeparttable = TRUE, general = 'Comparison of z-scores from different GLM models (columns) predicting numbers of established seedlings by species and site. Abbreviations in column headers refer to the categories used in the model term denoting local species status, potentially including the putative climate origins of each transient species at each site: P = persistent, T = transient, ST = similar temperature (i.e., a transient from a site with a similar temperature), SP = similar precipitation, C = cooler, Wa = warmer, D = drier, We = wetter, or U = unknown climate. Data include all recorded seedlings that could be identified to species. Asterisks denote significance (*: p < 0.05, **: p < 0.001). Dashes indicate predictors that were not included in a given model. Including model terms for transient/persistent species status and then putative temperature and precipitation origins did not improve model performance, as reflected in the increase of AIC values relative to the null model based only on local numbers of emerged seedlings.', general_title = "Table S6.") %>%
+  footnote(threeparttable = TRUE, general = 'Standardized coefficients (z-scores) from different GLM models (columns) predicting numbers of established seedlings by species and site. In column headers (i.e., model descriptions), "Species status" refers to whether the species is locally transient or persistent, and "Species temperature/precipitation origin" refers to the putative climate origin based on the nearest adult population. Data include all recorded seedlings that could be identified to species. Asterisks denote significance (*: p < 0.05, **: p < 0.001). Dashes indicate predictors that were not included in a given model. Including model terms for transient/persistent species status and then putative temperature and precipitation origins did not improve model performance, as reflected in the increase of AIC values relative to the null model based only on local numbers of emerged seedlings.', general_title = "Table S6.") %>%
   landscape()
 
 ```
@@ -1192,8 +1010,6 @@ In addition to testing for performance differences between transient and persist
 \pagebreak
 
 ```{r transition probabilities presence absence, fig.height = 3.5}
-
-set.seed(7)
 
 j <- xS_origins %>%
   spread(stage, abun, fill = 0)
@@ -1293,7 +1109,7 @@ grid_arrange_shared_legend(p1, p2, ncol = 2, nrow = 1)
 
 \pagebreak
 
-```{r species emergence model table, cache = FALSE}
+```{r species emergence model table}
 
 j <- mod_coefs %>%
   filter(Model %in% c('germbinNull','germbinClim','germbinS','germbinP','germbinT')) %>%
@@ -1307,31 +1123,25 @@ j <- mod_coefs %>%
                            ifelse(p.value < 0.05, paste0("*", Estimate), Estimate)),
     p.value = NULL) %>%
   spread(Model, Estimate, fill = NA) %>%
-  transmute(
-    ` ` = as.character(Variable),
-    N = c(rep(sum(germ_n[c(1,2,4,5,8)]), 3), rep(sum(germ_n[c(2,4,5,8)]), 3), germ_n[c(2,4,5,3,6,7,8)]),
-    `Null model` = germbinNull, 
-    `Local climate` = germbinClim,
-    `Local climate + Local sp. status (P/T)` = germbinS,
-    `Local climate + Local sp. status (P/ST/C/Wa/U)` = germbinT,
-    `Local climate + Local sp. status (P/SP/D/We/U)` = germbinP)
+  mutate(
+    Variable = as.character(Variable),
+    N = c(rep(sum(germ_n[c(1,2,4,5,8)]), 3), rep(sum(germ_n[c(2,4,5,8)]), 3), germ_n[c(2,4,5,3,6,7,8)])) %>%
+  select(Variable, germbinNull, germbinClim, germbinS, germbinT, germbinP)
 
-AICs <- c('$\\Delta$AIC', NA, sprintf("%.2f", c(0, AIC(germbinClim) - AIC(germbinNull), 
-                                                   AIC(germbinT) - AIC(germbinNull), 
-                                                   AIC(germbinS) - AIC(germbinNull),
-                                                   AIC(germbinP) - AIC(germbinNull))))
+AICs <- c('$\\Delta$AIC', sprintf("%.2f", c(c(AIC(germbinNull), AIC(germbinClim), AIC(germbinS), AIC(germbinT), AIC(germbinP)) - AIC(germbinNull))))
 
 j <- rbind(AICs, j)
 
 options(knitr.kable.NA = '-')
 
-kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l','r','r','r','r','r','r')) %>%
+kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l','r','r','r','r','r','r'),
+      col.names = linebreak(c("", "Null model", "Site climate", "Site climate +\nSp. status", "Site climate +\n Sp. temp. origin", "Site climate +\nSp. precip. origin"), align = 'r')) %>%
   kable_styling() %>%
-  column_spec(3:7, width = "7em") %>%
+  column_spec(3:7, width = "8em") %>%
   group_rows("General predictors", 2, 4) %>%
   group_rows("Transient/Persistent predictors", 5, 7) %>%
   group_rows("Origin-based predictors", 8, 14) %>%
-  footnote(threeparttable = TRUE, general = "Comparison of z-scores from different GLM models (columns) predicting the presence/absence of emerged seedlings by species and site. Abbreviations in column headers refer to the categories used in the model term denoting local species status, potentially including the putative climate origins of each transient species at each site: P = persistent, T = transient, ST = similar temperature (i.e., a transient from a site with a similar temperature), SP = similar precipitation, C = cooler, Wa = warmer, D = drier, We = wetter, or U = unknown climate. Data include all recorded seedlings that could be identified to species. Asterisks denote significance (*: p < 0.05, **: p < 0.001). Dashes indicate predictors that were not included in a given model. Including model terms for transient/persistent species status and then putative temperature and precipitation origins improved model performance, as reflected in the reduction of AIC values relative to the null model using only local seed numbers as a predictor.", general_title = "Table A1-1.") %>%
+  footnote(threeparttable = TRUE, general = 'Standardized coefficients (z-scores) from different GLM models (columns) predicting the presence/absence of emerged seedlings by species and site. In column headers (i.e., model descriptions), "Species status" refers to whether the species is locally transient or persistent, and "Species temperature/precipitation origin" refers to the putative climate origin based on the nearest adult population. Data include all recorded seedlings that could be identified to species. Asterisks denote significance (*: p < 0.05, **: p < 0.001). Dashes indicate predictors that were not included in a given model. Including model terms for transient/persistent species status and then putative temperature and precipitation origins improved model performance, as reflected in the reduction of AIC values relative to the null model using only local seed numbers as a predictor.', general_title = "Table A1-1.") %>%
   landscape()
 
 ```
@@ -1339,7 +1149,7 @@ kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l'
 
 \pagebreak
 
-```{r species establishment model table, cache = FALSE}
+```{r species establishment model table}
 
 j <- mod_coefs %>%
   filter(Model %in% c('estbinNull','estbinClim','estbinS','estbinP','estbinT')) %>%
@@ -1353,31 +1163,24 @@ j <- mod_coefs %>%
                            ifelse(p.value < 0.05, paste0("*", Estimate), Estimate)),
     p.value = NULL) %>%
   spread(Model, Estimate, fill = NA) %>%
-  transmute(
-    ` ` = as.character(Variable),
-    N = c(rep(sum(est_n[c(1,2,4,5,8)]), 3), rep(sum(est_n[c(2,4,5,8)]), 3), est_n[c(2,4,5,3,6,7,8)]),
-    `Null model` = estbinNull, 
-    `Local climate` = estbinClim,
-    `Local climate + Local sp. status (P/T)` = estbinS,
-    `Local climate + Local sp. status (P/ST/C/Wa/U)` = estbinT,
-    `Local climate + Local sp. status (P/SP/D/We/U)` = estbinP)
+  mutate(
+    Variable = as.character(Variable),
+    N = c(rep(sum(est_n[c(1,2,4,5,8)]), 3), rep(sum(est_n[c(2,4,5,8)]), 3), est_n[c(2,4,5,3,6,7,8)])) %>%
+  select(Variable, estbinNull, estbinClim, estbinS, estbinT, estbinP)
 
-AICs <- c('$\\Delta$AIC', NA, sprintf("%.2f", c(0, AIC(estbinClim) - AIC(estbinNull), 
-                                          AIC(estbinS) - AIC(estbinNull), 
-                                          AIC(estbinT) - AIC(estbinNull), 
-                                          AIC(estbinP) - AIC(estbinNull))))
+AICs <- c('$\\Delta$AIC', sprintf("%.2f", c(c(AIC(estbinNull), AIC(estbinClim), AIC(estbinS), AIC(estbinT), AIC(estbinP)) - AIC(estbinNull))))
 
 j <- rbind(AICs, j)
 
 options(knitr.kable.NA = '-')
 
-kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l','r','r','r','r','r','r')) %>%
+kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", align = c('l','r','r','r','r','r','r'), col.names = linebreak(c("", "Null model", "Site climate", "Site climate +\nSp. status", "Site climate +\n Sp. temp. origin", "Site climate +\nSp. precip. origin"), align = 'r')) %>%
   kable_styling() %>%
-  column_spec(3:7, width = "7em") %>%
+  column_spec(3:7, width = "8em") %>%
   group_rows("General predictors", 2, 4) %>%
   group_rows("Transient/Persistent predictor", 5, 7) %>%
   group_rows("Origin-based predictors", 8, 12) %>%
-  footnote(threeparttable = TRUE, general = 'Comparison of z-scores from different GLM models (columns) predicting the presence/absence of established seedlings by species and site. Abbreviations in column headers refer to the categories used in the model term denoting local species status, potentially including the putative climate origins of each transient species at each site: P = persistent, T = transient, ST = similar temperature (i.e., a transient from a site with a similar temperature), SP = similar precipitation, C = cooler, Wa = warmer, D = drier, We = wetter, or U = unknown climate. Data include all recorded seedlings that could be identified to species. Asterisks denote significance (*: p < 0.05, **: p < 0.001). Dashes indicate predictors that were not included in a given model. Including model terms for transient/persistent species status and then putative temperature and precipitation origins did not improve model performance, as reflected in the increase of AIC values relative to the null model based only on local numbers of emerged seedlings.', general_title = "Table A1-2.") %>%
+  footnote(threeparttable = TRUE, general = 'Standardized coefficients (z-scores) from different GLM models (columns) predicting the presence/absence of established seedlings by species and site. In column headers (i.e., model descriptions), "Species status" refers to whether the species is locally transient or persistent, and "Species temperature/precipitation origin" refers to the putative climate origin based on the nearest adult population. Data include all recorded seedlings that could be identified to species. Asterisks denote significance (*: p < 0.05, **: p < 0.001). Dashes indicate predictors that were not included in a given model. Including model terms for transient/persistent species status and then putative temperature and precipitation origins did not improve model performance, as reflected in the increase of AIC values relative to the null model based only on local numbers of emerged seedlings.', general_title = "Table A1-2.") %>%
   landscape()
 
 
@@ -1489,6 +1292,9 @@ kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", longtable = T
 
 ```{r various stats for Results, include = FALSE}
 
+"Transient seeds occurred at all 12 grassland sites"
+x %>% filter(id == 'Transient') %>% summarise(sites = length(unique(site)))
+
 
 "Although seeds of transient species comprised ~10% of the combined seed rain and seed bank communities"
 x %>%
@@ -1516,11 +1322,17 @@ paste(length(unique(xS_origins$sp[xS_origins$stage == 'seed' & xS_origins$idT ==
 sum(x_sp$abun[x_sp$stage == 'germ'])
 sum(x_sp$abun[x_sp$stage == 'est'])
 
-"How many adults were never seen as seeds outside of thier local sites"
-sum(!unique(x$sp[x$stage == 'mature' & x$id == 'Persistent']) %in% xS$sp[xS$stage == 'seed' & xS$id == 'Transient'])
+"How many adult species were persistent? i.e., persistent adult richness?"
+x %>% filter(stage == 'mature' & id == 'Persistent') %>% summarise(adult_rich = length(unique(sp)))
 
-"How many of the adult species had no seeds observed anywhere"
+"How many adults were never seen as seeds or seedlings outside of thier local sites"
+sum(!unique(x$sp[x$stage == 'mature' & x$id == 'Persistent']) %in% xS$sp[xS$stage %in% c('seed','seedling') & xS$id == 'Transient'])
+
+"How many persistent adult species had no seed or seedlings observed anywhere"
 sum(!unique(x$sp[x$stage == 'mature' & x$id == 'Persistent']) %in% xS$sp[xS$stage %in% c('seed','germ')])
+
+"What were those species?"
+unique(x$sp[x$stage == 'mature' & x$id == 'Persistent'])[!unique(x$sp[x$stage == 'mature' & x$id == 'Persistent']) %in% xS$sp[xS$stage %in% c('seed','germ')]]
 
 "At how many sites did transient species emerge?" 
 x %>% filter(id == 'Transient' & stage == 'germ') %>% group_by(site, stage) %>% summarise(abun = sum(abun), rich = length(unique(sp))) %>% ungroup() %>% mutate(all_trans = sum(abun), all_sp = sum(rich), all = sum(x$abun[x$stage == 'germ']), per = all_trans/all) %>% filter(abun > 0) %>% nrow()
