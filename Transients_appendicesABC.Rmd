@@ -1,0 +1,332 @@
+---
+output:
+  pdf_document:
+    fig_caption: no
+  word_document: default
+  html_document:
+    df_print: paged
+header-includes: |
+  \usepackage{fancyhdr}
+  \fancyfoot[LE,RO]{\thepage}
+---
+
+```{r setup, include = FALSE}
+
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+```
+
+
+```{r assemble data, include = FALSE}
+
+# set wd
+wd <- 'C:\\Users\\John\\Documents\\michigan\\seedclim\\'
+setwd(wd)
+
+# load packages
+source("MS_Transients\\custom_functions_transients.R")
+loadpax(pkg = c('grid','knitr','vegan','lme4','tidyverse','gridExtra','kableExtra','ggpubr','lubridate'))
+
+# load abundance data
+x1 <- read.csv("data\\transitions_PersistentSppOccurOnce.csv", stringsAsFactors = FALSE)
+x2 <- read.csv("data\\transitions_PersistentSppOccurTwice.csv", stringsAsFactors = FALSE)
+x3 <- read.csv("data\\transitions_PersistentSppOccurThrice.csv", stringsAsFactors = FALSE)
+x4 <- read.csv("data\\transitions_PersistentSppOccurAlways.csv", stringsAsFactors = FALSE)
+
+# load site metadata
+site.meta <- read.csv("data\\site_meta.csv", stringsAsFactors = FALSE)
+
+#load site climate data
+clim <- readRDS('data\\site_climates.RDS') %>%
+  left_join(site.meta[, c('site','temp.level','precip.level')], by = "site")
+  
+# Load species 'dictionary'.
+dict <- read.csv("data processing\\SpeciesCodeDictionary.csv", stringsAsFactors = FALSE)
+
+#Load trait data
+trait.data <- read.csv(file = 'data\\transients_traits.csv', stringsAsFactors = FALSE)
+
+# seed bank data was sampled at a greater area than seedling and seed rain data... so...
+# here I randomly subsample the seed bank data (without replacement) down to the fraction (based on area)
+# equal to what it should be
+frac <- (4 * 0.25^2) / (0.64^2)
+x1 <- subbank(x1, frac)
+x2 <- subbank(x2, frac)
+x3 <- subbank(x3, frac)
+x4 <- subbank(x4, frac)
+
+# Create a version of data where seed rain and seed bank are merged into one 'seed' category
+xS_sp1 <- mergeseeds(x1)
+xS_sp2 <- mergeseeds(x2)
+xS_sp3 <- mergeseeds(x3)
+xS_sp4 <- mergeseeds(x4)
+
+# create versions with and without unidentified 'sp' individuals
+# i do this now because it is easy to forget later...
+# and in some cases I want to know the total density of seedlings
+xS1 <- filter(xS_sp1, sp != 'sp')
+xS2 <- filter(xS_sp2, sp != 'sp')
+xS3 <- filter(xS_sp3, sp != 'sp')
+xS4 <- filter(xS_sp4, sp != 'sp')
+all_cutoffs <- bind_rows(
+  mutate(xS1, group = '1/4 local occurrences'),
+  mutate(xS2, group = '2/4 local occurrences'),
+  mutate(xS3, group = '3/4 local occurrences'),
+  mutate(xS4, group = '4/4 local occurrences'))
+  
+#for all main analyses we will use x3 (persistent = 3 or more occurences)
+x_sp <- x3
+x <- filter(x3, sp != 'sp')
+xS_sp <- xS_sp3
+xS <- xS3
+
+# default ggplot theme for later use
+th <- theme_bw() + 
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.background = element_blank()) 
+
+# calculate putative climate origins
+if (TRUE) {
+  x_origins <- add_origins(x, 'categorical')
+  xS_origins <- add_origins(xS, 'categorical')
+  write.csv(x_origins, "data\\transitions_origins_categorical.csv", row.names = FALSE)
+  write.csv(xS_origins, "data\\transitions_seed_origins_categorical.csv", row.names = FALSE)
+}
+
+x_origins <- read.csv("data\\transitions_origins_categorical.csv", stringsAsFactors = FALSE)
+xS_origins <- read.csv("data\\transitions_seed_origins_categorical.csv", stringsAsFactors = FALSE)
+
+image_dir <- 'C:\\Users\\John\\Documents\\michigan\\seedclim\\MS_Transients\\images\\'
+
+```
+
+#APPENDIX A
+
+In addition to testing for performance differences between locally transient and locally persistent species using numbers of seeds and seedlings, we use generalized linear models (GLMs) to test for differences in the presence/absence of emerged seedlings and established seedlings by species at each site. In other words, we investigate the probability of transient species emerging and/or establishing at sites *at all*, rather than their rates of emergence and establishment. These models are structurally identical to the GLMs based on seedling abundance data, except that the response variable is binary (presence/absence) and therefore we use binomial error distributions and logit links. In this appendix, we compile results and figures that relate to this presence/absence analysis.
+
+\pagebreak
+
+![](images\\emergeEstabBinary.png)
+
+**Figure A1-1.** The presence/absence of emerged seedlings (left) and established seedlings (right) by species and site, colored by local species status. Each circle represents the presence/absence of one species at one site, and colored lines and shadings show LOESS smoothing functions and 95 % confidence intervals, respectively. Seed number is equal to the sum of seeds in the seed rain and seed bank. Presence/absence data are based on censuses in four 25 x 25 cm subplots at each site. Count data are increased by one to enable including zeroes on a log scale. Species emergence and species establishment denote whether any individuals of a given species emerged or established, respectively, at a given site. Plots only show data falling within the observed window of locally transient seed abundances (< 523 seeds) and locally transient seedling abundances (< 35 seedlings) in order to focus on the comparison of locally transient and locally persistent species.
+
+\pagebreak
+
+![](images\\tabA1_1.png)
+
+\pagebreak
+
+![](images\\tabA1_2.png)
+
+\pagebreak
+
+#APPENDIX B
+
+List of species used in this study and their net abundances across stages. For adult plant data, the mean percent cover is calculated for each species at each site, and then summed over sites. Otherwise, abundance is the sum of all individuals collected or measured.
+
+
+```{r Species List appendix}
+
+# write a species list for supplementary materials?
+shortlabs <- c('Rain' = 'rain', 'Bank' = 'bank', 'Emerged' = 'germ',
+               'Established' = 'est', 'Adults' = 'mature')
+j <- x %>%
+  mutate(stage = factor(names(shortlabs)[match(stage, shortlabs)], levels = names(shortlabs))) %>%
+  group_by(site, stage, sp) %>%
+  summarise(abun = ceiling(abun)) %>%
+  group_by(stage, sp) %>%
+  summarise(abun = sum(abun)) %>%
+  ungroup() %>%
+  mutate(
+    Species = dict$Species[match(sp, dict$Species.code)],
+    `Code` = sp, sp = NULL) %>%
+  spread(stage, abun, fill = 0)
+
+#here, everything is raw abundances except for Adults, in which case it is the sum of the relative abundances of each species at all 12 sites.
+
+A2 <- kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", longtable = TRUE) %>%
+  kable_styling(latex_options = 'repeat_header') %>%
+  row_spec(0, bold = T)
+
+saveRDS(A2, paste0(wd,'MS_Transients\\images\\A2.RDS'))
+
+A2
+
+setwd(paste0(wd, "//MS_RecruitTag//figures"))
+write.csv(j, file = 'SpeciesStageAbundances.csv', row.names = F)
+
+```
+
+\pagebreak
+
+# APPENDIX C
+
+Species trait values used in this study. Trait values for taxonomically unresolved genera (e.g., *Pyrola sp*, *Epilobium sp*) are means based on field data. Trait abbreviations (i.e., column headers) are defined as follows: LA: leaf area (mm^2^); MH: maximum height (m); SM: seed mass (mg); SLA: specific leaf area (m^2^/kg); CP: persistence of plant-offspring connections (0: fewer than two years; 1: two or more years); CO: number of offspring per parent per year (0: one or fewer offspring; 1: two or more offspring); LAT: rate of lateral spread (0: one cm/year; 1: more than one cm/year; BUDS: number of buds per ramet (an integer score ranging from one (few buds belowground and aboveground) to eight (many buds belowground and aboveground)). LA, MH, SM, and SLA values are log10-transformed.
+
+```{r Species traits appendix}
+
+
+j <- trait.data %>%
+  dplyr::select(Species = sp, LA = leaf.area, MH = max.height, SM = 'seed.mass', SLA = sla, CP = conper, CO = offs, LAT = lat, BUDS = buds) %>%
+  mutate(Species = dict$Species[match(Species, dict$Species.code)]) %>%
+  mutate_if(is.numeric, round, 2) %>%
+  arrange(Species)
+
+options(knitr.kable.NA = '-')
+
+A3 <- kable(j, format = 'latex', escape = F, booktabs = T, linesep = "", longtable = TRUE) %>%
+  kable_styling(latex_options = 'repeat_header') %>%
+  row_spec(0, bold = T)
+
+saveRDS(A3, paste0(wd,'MS_Transients\\images\\A3.RDS'))
+
+A3
+
+#setwd(paste0(wd, "//MS_RecruitTag//figures"))
+#write.csv(j, file = 'SpeciesTraitData.csv', row.names = F)
+
+```
+
+
+```{r various stats for Results, include = FALSE}
+
+"Transient seeds occurred at all 12 grassland sites"
+x %>% filter(id == 'Transient') %>% summarise(sites = length(unique(site)))
+
+
+"Although seeds of transient species comprised ~10% of the combined seed rain and seed bank communities"
+x %>%
+  filter(stage %in% c('rain','bank')) %>%
+  group_by(id) %>%
+  summarise(abun = sum(abun)) %>%
+  spread(id, abun, fill = 0) %>%
+  mutate(Percent_transient = Transient/(Transient + Persistent))
+  
+
+"Transient seeds in the combined seed rain and seed bank contributed 189 locally-novel species across all sites."
+x %>% 
+  filter(id == 'Transient' & stage %in% c('rain','bank')) %>% 
+  group_by(site) %>% 
+  summarise(n = length(unique(paste(site, sp)))) %>% ungroup() %>% summarise(n = sum(n))
+
+"How many seeds disperse from warmer to cooler sites?"
+paste(round(100 * sum(xS_origins$abun[xS_origins$stage == 'seed' & xS_origins$idT == 'Warmer']) / 
+  sum(xS_origins$abun[xS_origins$stage == 'seed']), 1), '%') 
+
+"How many species disperse from warmer to cooler sites?"
+paste(length(unique(xS_origins$sp[xS_origins$stage == 'seed' & xS_origins$idT == 'Warmer'])), '/', length(unique(xS_origins$sp[xS_origins$stage == 'seed'])), 'or', round(100 * length(unique(xS_origins$sp[xS_origins$stage == 'seed' & xS_origins$idT == 'Warmer'])) / length(unique(xS_origins$sp[xS_origins$stage == 'seed'])), 1), '%') 
+
+"How many species disperse from wetter to drier sites?"
+paste(length(unique(xS_origins$sp[xS_origins$stage == 'seed' & xS_origins$idP == 'Wetter'])), '/', length(unique(xS_origins$sp[xS_origins$stage == 'seed'])), 'or', round(100 * length(unique(xS_origins$sp[xS_origins$stage == 'seed' & xS_origins$idP == 'Wetter'])) / length(unique(xS_origins$sp[xS_origins$stage == 'seed'])), 1), '%') 
+
+
+"How many seedlings did we record (including unidentified seedlings)? How many established?"
+sum(x_sp$abun[x_sp$stage == 'germ'])
+sum(x_sp$abun[x_sp$stage == 'est'])
+
+"How many adult species were persistent? i.e., persistent adult richness?"
+x %>% filter(stage == 'mature' & id == 'Persistent') %>% summarise(adult_rich = length(unique(sp)))
+
+"How many adults were never seen as seeds or seedlings outside of thier local sites"
+sum(!unique(x$sp[x$stage == 'mature' & x$id == 'Persistent']) %in% xS$sp[xS$stage %in% c('seed','seedling') & xS$id == 'Transient'])
+
+"How many persistent adult species had no seed or seedlings observed anywhere"
+sum(!unique(x$sp[x$stage == 'mature' & x$id == 'Persistent']) %in% xS$sp[xS$stage %in% c('seed','germ')])
+
+"What were those species?"
+unique(x$sp[x$stage == 'mature' & x$id == 'Persistent'])[!unique(x$sp[x$stage == 'mature' & x$id == 'Persistent']) %in% xS$sp[xS$stage %in% c('seed','germ')]]
+
+"At how many sites did transient species emerge?" 
+x %>% filter(id == 'Transient' & stage == 'germ') %>% group_by(site, stage) %>% summarise(abun = sum(abun), rich = length(unique(sp))) %>% ungroup() %>% mutate(all_trans = sum(abun), all_sp = sum(rich), all = sum(x$abun[x$stage == 'germ']), per = all_trans/all) %>% filter(abun > 0) %>% nrow()
+
+"At how many sites did transient species establish?"
+"How many transient species established at sites?"
+x %>% filter(id == 'Transient' & stage == 'est') %>% group_by(site, stage) %>% summarise(abun = sum(abun), rich = length(unique(sp))) %>% ungroup() %>% mutate(all_trans = sum(abun), all_sp = sum(rich), all = sum(x$abun[x$stage == 'est']), per = all_trans/all) %>% filter(abun > 0) %>% mutate(total_sites = length(all))
+
+"how many species dispersed into cooler/wetter sites"
+xS_origins %>%
+  filter(stage == 'seed') %>%
+  group_by(idT) %>%
+  summarise(abun = sum(abun), rich = length(unique(sp))) %>%
+  ungroup() %>%
+  mutate(percentage = abun / sum(abun))
+xS_origins %>%
+  filter(stage == 'seed') %>%
+  group_by(idP) %>%
+  summarise(abun = sum(abun), rich = length(unique(sp))) %>%
+  ungroup() %>%
+  mutate(percentage = abun / sum(abun))
+
+# Transition probabilities, NOT GROUPED BY SPECIES.
+xS_sp %>%
+  filter(stage != 'mature') %>%
+  group_by(site, stage) %>%
+  mutate(den = abun / (4 * 0.25^2)) %>%
+  summarise(den = sum(den)) %>%
+  spread(stage, den, fill = 0) %>%
+  ungroup() %>%
+  summarise(
+    Emergence = paste(sprintf("%.2f", mean(germ/seed)), "±", 
+                      sprintf("%.2f", sd(germ/seed))),
+    Establishment = paste(sprintf("%.2f", mean(est/germ)), "±", 
+                          sprintf("%.2f", sd(est/germ))),
+    `Seed-to-Establishment` = paste(sprintf("%.2f", mean(est/seed)), "±", 
+                                    sprintf("%.2f", sd(est/seed)))) %>%
+  gather(Transition, `Rate`, Emergence, Establishment, `Seed-to-Establishment`)
+
+
+### how does richness in the bank vs rain compare when subsampling to equal depths
+if(FALSE) {
+  tmp <- x %>%
+    filter(stage %in% c('rain','bank')) %>%
+    group_by(stage, site, sp) %>%
+    summarise(abun = ceiling(sum(abun))) %>%
+    group_by(site) %>%
+    mutate(n = min(sum(abun[stage == 'rain']), sum(abun[stage == 'bank'])))
+  
+  tmp2 <- list()
+  for(i in unique(tmp$site)) {
+    for(j in unique(tmp$stage)) {
+      tmp3 <- filter(tmp, site == i & stage == j)
+      tmp2[[paste0(j,i)]] <- table(sample(rep(tmp3$sp, times = tmp3$abun), 
+                                   size = tmp3$n[[1]], replace = FALSE))
+    }
+  }
+  tmp <- reshape2::melt(tmp2) %>%
+    separate(L1, sep = 4, into = c('stage','site')) %>%
+    transmute(site, stage, sp = Var1, abun = value) %>%
+    group_by(site) %>%
+    mutate(n = sum(abun)) %>%
+    bind_rows(tmp) %>%
+    group_by(site, stage) %>%
+    summarise(rich = length(unique(sp[abun > 0]))) %>%
+    spread(stage, rich) %>%
+    left_join(site.meta, by = 'site') %>%
+    mutate(
+    MST = factor(c(6,9,10.5)[match(temp.level, c(1:3))], levels = c(6,9,10.5)),
+    MAP = factor(c(650,1300,2000,2900)[match(precip.level, c(1:4))], levels = c(650,1300,2000,2900)))
+  
+    ggplot(tmp, aes(x = rain, y = bank)) +
+      geom_point(aes(fill = MAP, shape = MST), size = 3) +
+      geom_point(aes(x = bank, y = rain), alpha = 0) +
+      geom_abline(slope = 1, lty = 3) +
+      scale_fill_manual(values = c('#87CEEB', '#749ED5', '#5057B2', '#140D8F'), name = '') +
+      scale_shape_manual(values = c(24,21,25), 'Mean annual precipitation') +
+      labs(x = 'Seed rain richness (subsampled)', y = 'Seed bank richness (subsampled)') +
+      th +
+      guides(fill = guide_legend(override.aes = list(shape = 21, fill = c('#87CEEB', '#749ED5', '#5057B2', '#140D8F'))))
+
+    #summary stats, in terms of number of species
+    summarise(ungroup(tmp), mean = mean(bank - rain), mean_percent = mean(bank / rain), sd = sd(bank - rain))
+    
+}
+
+#trait-based differences over life stages...
+xS_origins %>% filter(stage != 'mature') %>% left_join(trait.data, by = 'sp') %>% gather(trait, val, leaf.area, max.height, seed.mass, sla, conper, offs, lat, buds) %>% select(-id, -idP) %>% group_by(site, stage, idT, trait) %>% summarise(cm = mean(val, na.rm = T)) %>% ungroup() %>% mutate(stage = factor(stage, levels = c('seed','germ','est'))) %>% ggplot(aes(x = stage, y = cm, color = idT)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~trait, scales = 'free')
+
+
+
+```
+

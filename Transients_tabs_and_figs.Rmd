@@ -1,0 +1,80 @@
+---
+bibliography: C:\\Users\\John\\Documents\\library.bib
+csl: C:\\Users\\John\\Documents\\ecology.csl
+output:
+  bookdown::word_document2:
+    reference_docx: C:\\Users\\John\\Documents\\rmd_style_template.docx
+    toc: no
+  word_document:
+    toc: no
+  bookdown::html_document2:
+    fig_caption: yes
+    theme: united
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+```{r initialize manuscript, include=FALSE}
+
+library(kableExtra)
+library(knitr)
+library(formattable)
+
+#set knitr options
+opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
+
+#initialize manuscript formatting script
+source('C:\\Users\\John\\Documents\\initialize_manuscript.R')
+
+
+```
+
+`r pagebreak` ![](images\\figure1_color.jpg)
+
+**Figure 1.** Panel A shows mean summer temperature and mean annual precipitation values at the twelve sites. Summer is defined as the warmest four months at each site. Panels B and C show site locations in southern Norway. The grayscale shading in panel C denotes altitude, which covaries closely with mean summer temperature. The transition in shape color from dark blue to light blue in panel C reflects the east-to-west gradient in annual precipitation.
+
+`r pagebreak` ![](images\\VegRarefaction.png)
+
+**Figure 2.** Rarefaction curves show increases in the number of species observed in the mature vegetation at each site with increasing sampling effort, grouped by local transient/persistent species status. Species occurrence data for each 25 x 25 cm plot were determined by pooling data from four annual vegetation surveys conducted at peak biomass at each site in 2009, 2011, 2012, and 2013. Species were considered locally persistent if observed in any plot at a site in at least three of the four vegetation surveys, otherwise species were considered locally transient. Rarefaction was performed 100 times, with the stepwise order of plots shuffled randomly each time. Colored shapes show mean values across the 100 replicates. Each line is a site. Shapes and shadings are consistent with Fig. 1 and reflect approximate mean summer temperatures of 6 &deg;C (triangle), 9 &deg;C (circle), and 10.5 &deg;C (inverted triangle) and annual precipitations of 650 mm, 1300 mm, 2000 mm, and 2900 mm, from light blue to dark blue. 
+
+`r pagebreak` ![](images\\TPnums.png)
+
+**Figure 3.** Numbers of individuals recorded in this study, grouped by life stage and shaded by local species status. Species were considered locally persistent if observed in any plot at a site in at least three of the four vegetation surveys, otherwise species were considered locally transient. Percentages reflect the fraction of all individuals that are of locally transient species for each life stage. Seed rain data comprise four 25 x 25 cm plots per site, collected twice over a one year period. Seed bank data comprise one 64 cm^2^ plot, subsampled *in silico* down to 61 % of its original total abundance at each site to standardize sampling effort among data sets. Seedling data comprise a single cohort of emerged seedlings in four 25 x 25 cm gaps at each site, which were monitored twice a year for survival and establishment over a two year period.
+
+`r pagebreak` ![](images\\tranTrends.png)
+
+**Figure 4.** Seed density (the left set of four panels) and species richness (the right set of four panels) of locally transient species by site, in both raw numbers (the top rows of panels) and as percentages of total seeds/species at each site (the bottom rows of panels), plotted by mean summer temperature. Shapes and shadings are consistent with Fig. 1 and reflect approximate mean summer temperatures of 6 &deg;C (triangle), 9 &deg;C (circle), and 10.5 &deg;C (inverted triangle) and annual precipitations of 650 mm, 1300 mm, 2000 mm, and 2900 mm, from light blue to dark blue. Summer is defined as the four warmest months at each site. Lines are solid when temperature or precipitation were significant predictors (p < 0.05) in a multiple linear regression, and dashed when marginally significant (p < 0.1). See Table S2 for multiple linear regression summary statistics. Mean annual precipitation was also a significant positive predictor of the absolute richness of locally transient species and the percentage of locally transient species in the seed bank, but to a lesser degree (Table S2).
+
+`r pagebreak` ![](images\\originBars.png)
+
+**Figure 5.** Putative climate origins of locally transient seeds by life stage. Seeds are assumed to originate from the nearest (i.e., most similar) climate in our system at which persistent adult populations occur.
+
+`r pagebreak` ![](images\\emergeEstab.png)
+
+**Figure 6.** The abundances of emerged seedlings (left) and established seedlings (right) of species at individual sites, colored by local transient/persistent species status. Each circle represents the presence/absence of one species at one site, and colored lines and shadings show LOESS smoothing functions and 95 % confidence intervals. Seed number is equal to the sum of seeds in the seed rain and seed bank. Abundances reflect the total number of individuals in four 25 x 25 cm subplots at each site. Count data are increased by one to include zeroes on a log scale. Panels only show data falling within the observed window of locally transient seed abundances (< 400 seeds) and transient seedling abundances (< 33 seedlings) in order to focus on the comparison of locally transient and locally persistent species.
+
+`r pagebreak` ![](images\\traitBiplot.png)
+
+**Figure 7.** Mean trait values of locally transient species relative to locally persistent species at each site. Shapes and shadings are consistent with Fig. 1 and reflect approximate mean summer temperatures of 6 &deg;C (triangle), 9 &deg;C (circle), and 10.5 &deg;C (inverted triangle) and annual precipitations of 650 mm, 1300 mm, 2000 mm, and 2900 mm, from light blue to dark blue. Shapes are filled with color only when values differ significantly between locally transient and locally persistent species across all sites (paired t-test; p < 0.05). SLA: specific leaf area. Bud number is an integer score that ranges from 1 (few buds either belowground or aboveground) to 8 (many buds both below and aboveground); percent lateral spread refers to the proportion of species with rates of lateral spread greater than 1 cm/year; percent offspring refers to the proportion of species that commonly produce two or more vegetative offshoots per parent per year; percent connection persistence refers to the proportion of species with inter-ramet connections that persist for two or more years.
+
+`r pagebreak` ![](images\\tab1.png)
+
+`r pagebreak` ![](images\\abunHist.png)
+
+**Figure S1.** A histogram of local relative abundances of all species at each of all twelve sites, grouped and colored by local transient/persistent species status, and plotted along square-root scales on both x and y axes. All locally transient species fall below 0.31% total site cover.
+
+`r pagebreak` ![](images\\emergeEstabAll.png)
+
+**Figure S2.** The abundances of emerged seedlings (top row of panels) and established seedlings (bottom row of panels) of species at individual sites, plotted by local seed number and local seedling number, respectively, and colored by local species status. Each column of panels reflects a version of the data for which a different cutoff for local persistent species status was used; from left to right, only species that occurred in the mature vegetation at a given site in one, two, three, or four of the four total annual surveys were considered locally "persistent," and the remaining species (under each cutoff scenario) were considered locally "transient." Each circle represents the presence/absence of one species at one site, and colored lines and shadings show LOESS smoothing functions and 95 % confidence intervals. Seed number is equal to the sum of seeds in the seed rain and seed bank. Abundances reflect the total number of individuals in four 25 x 25 cm subplots at each site. Count data are increased by one to include zeroes on a log scale. Panels only show data falling within the observed window of locally transient seed abundances and locally transient seedling abundances under each cutoff scenario in order to focus on the comparison of locally transient and locally persistent species. These figures illustrate that regardless of the transient/persistent cutoff used, (1) emergence rates remained significantly lower for seeds of transient species than seeds of persistent species (top row of panels), and (2) establishment rates did not significantly differ among seedlings of transients and persistent species (bottom row of panels). Model selection and coefficient significance values were also effectively the same among the four scenarios (data not shown).
+
+`r pagebreak` ![](images\\statusTemp.png)
+
+**Figure S3.** Abundances of emerged (left) and established (right) seedlings by species at individual sites as a function of local seed number in the combined seed rain and seed bank, colored by local species status. Each circle represents the seed abundances and seedling abundance of one species at one site. Colored lines show linear regressions for data at the three temperature levels in our system; each temperature level includes data from four sites with different mean annual precipitations. Seedling abundances reflect the net number of individuals in four 25 x 25 cm plots at each site. Count data are increased by one in order to incorporate zeroes on a log scale. Panels only show data falling within the observed window of locally transient seed abundances (< 521 seeds) to focus on the comparison of locally transient and locally transient and locally persistent species.
+
+`r pagebreak` ![](images\\tabS1.png)
+`r pagebreak` ![](images\\tabS2.png){width=5.5in}
+`r pagebreak` ![](images\\tabS3.png){width=5.5in}
+`r pagebreak` ![](images\\tabS4.png)
+`r pagebreak` ![](images\\tabS5.png)

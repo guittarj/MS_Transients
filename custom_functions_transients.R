@@ -1,19 +1,26 @@
 # My custom/collected functions
 
-add_origins <- function(x) {
+add_origins <- function(x, method = c('numeric', 'categorical')) {
 	
-	x1 <- merge(
-		add_origin(x, 'temp.level') %>% rename(idT = id),
-		add_origin(x, 'precip.level') %>% rename(idP = id)
-	)
-  
-  	x1 <- left_join(x, x1, by = c("site", "sp", "stage", "abun"))
+	if (method == 'numeric') {
+    x1 <- merge(
+		  add_origin_numeric(x, 'temp.level') %>% rename(idT = id),
+		  add_origin_numeric(x, 'precip.level') %>% rename(idP = id)
+	  )
+  } else {
+    x1 <- merge(
+      add_origin_categorical(x, 'temp.level') %>% rename(idT = id),
+      add_origin_categorical(x, 'precip.level') %>% rename(idP = id)
+    )
+  }
+
+  x1 <- left_join(x, x1, by = c("site", "sp", "stage", "abun"))
   	
-  	return(x1)
+  return(x1)
 
 }
 
-add_origin <- function(x, y = c('temp.level','precip.level')) {
+add_origin_categorical <- function(x, y = c('temp.level','precip.level')) {
   # Add putative climate origins to list of site/species
    
   if(y == 'temp.level') clab <- c('Cooler','Warmer','Same temperature')
@@ -50,6 +57,40 @@ add_origin <- function(x, y = c('temp.level','precip.level')) {
   return(x)
 }
 
+add_origin_numeric <- function(x, y = c('temp.level','precip.level')) {
+  
+  # Add putative climate origins to list of site/species   
+  y <- c('site', y)
+  
+  tmp <- site.meta[, y]
+  names(tmp)[2] <- 'lev'
+  
+  #add climate column
+  x <- left_join(x, tmp, by = 'site')
+  
+  #create set of local communities
+  #don't count species labeled as transients (id = 'Transient')
+  loc <- filter(x, stage == 'mature' & id == 'Persistent' & abun > 0)
+    
+  # Here, if a species is present in both lower and higher climates, it is considered to be from the same climate. Kind of conservative but makes sense. 
+  for (i in c(1:nrow(x))) {
+    if (x$id[i] != 'Persistent' & x$sp[i] %in% loc$sp) {
+      if (x$sp[i] %in% filter(loc, lev < x$lev[i])$sp) x$id[i] <- max(filter(loc, sp == x$sp[i])$lev - x$lev[i])
+      if (x$sp[i] %in% filter(loc, lev > x$lev[i])$sp) x$id[i] <- min(filter(loc, sp == x$sp[i])$lev - x$lev[i])
+      if (x$sp[i] %in% filter(loc, lev == x$lev[i])$sp) x$id[i] <- 0
+      if (x$sp[i] %in% filter(loc, lev < x$lev[i])$sp &
+          x$sp[i] %in% filter(loc, lev > x$lev[i])$sp) x$id[i] <- 0
+    }
+  }
+  
+  # clean up remaining categories.
+  x$lev <- NULL
+  x$id[x$id == 'Persistent'] <- 0
+  x$id[x$id == 'Transient'] <- NA
+  
+  return(x)
+}
+
 loadpax <- function(pkg){
   # (1) checks package installation, (2) installs them if not, then (3) loads them
     new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
@@ -61,6 +102,22 @@ loadpax <- function(pkg){
 stat_sum_df <- function(fun, geom = 'crossbar', ...) {
   # For plotting
   stat_summary(fun.data = fun, geom = geom, width = 0.2, ...)
+}
+
+
+plot_it <- function(plot, name, dir = "", height, width, res = 300) {
+  # custom function to plot a high quality image.
+  #to alter quality, increase res
+  
+  png(filename = paste0(dir, name, '.png'), units = 'in',
+      type = "cairo", width = width, height = height, res = res)
+  
+  #only works for ggplot. base plot() is dumb
+  plot(plot)
+  
+  #close out any lingering devs...
+  while(dev.cur() != 1) dev.off()
+  
 }
 
 # predict loess curves. 
@@ -177,6 +234,47 @@ stage_labels <- function(s, lvs = stage_lvs) {
   s <- factor(s, levels = lvs[lvs %in% s])
   return(s)
 }
+
+
+#subsample seed bank community down to a stated fraction
+subbank <- function(x, frac) {
+
+	set.seed(7)
+	tmp <- x %>% filter(stage == 'bank')
+	subsampled_bank <- tmp[0, ]
+
+	for (i in unique(tmp$site)) {
+	  tmp0 <- filter(tmp, site == i)
+	  tmp0 <- tmp0[rep(c(1:nrow(tmp0)), times = tmp0$abun), ]
+	  tmp0 <- tmp0[sample(c(1:nrow(tmp0)), size = round(nrow(tmp0) * frac)), ]
+	  tmp0$abun <- 1
+	  subsampled_bank <- rbind(subsampled_bank, tmp0)
+	}
+  
+	subsampled_bank <- subsampled_bank %>%
+	  group_by(site, stage, sp, id) %>%
+	  summarise(abun = sum(abun))
+
+	x <- rbind(as.data.frame(filter(x, stage != 'bank')), 
+	           as.data.frame(subsampled_bank))
+
+	return(x)
+
+}
+
+#merge seed rain and seed bank
+mergeseeds <- function(x) {
+
+	x <- x %>%
+	  mutate(stage = ifelse(stage %in% c('rain','bank'), 'seed', stage)) %>%
+	  group_by(site, stage, sp, id) %>%
+	  summarise(abun = sum(abun)) %>%
+	  ungroup()
+
+	return(x)
+
+}
+
 
 # print list of loaded functions
 print(data.frame(Custom_Functions = 
